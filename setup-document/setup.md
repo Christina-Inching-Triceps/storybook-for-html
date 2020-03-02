@@ -14,24 +14,23 @@ Storybook for HTMLの設定手順を記録します。
 ├── src
 │   └── components
 │       └── Button
-├── tsconfig.json
 └── yarn.lock
 ```
 
 ## Dockerの導入
 
-## typescript設定
-
-[公式サイト](https://storybook.js.org/docs/configurations/typescript-config/)のドキュメントを参考に設定していきます。  
+## html, scssの設定
 
 ### dependencies追加
 
 ```sh
-yarn add -D typescript
-yarn add -D ts-loader
 # sass利用をするため追加
 yarn add -D node-sass sass-loader css-loader style-loader
+# htmlを切り出してimportするため
+yarn add -D html-loader extract-loader
 ```
+
+htmlファイルをimportして別ファイルで管理するためにhtml-loaderを追加しています。  
 
 ### 設定ファイル群の追加・修正
 
@@ -40,8 +39,7 @@ typescriptやsacc利用のための設定をこれから追加していきます
 
 #### main.js
 
-[こちら](https://storybook.js.org/docs/configurations/typescript-config/#setting-up-typescript-with-ts-loader)の内容を参考に設定していきます。  
-私はwebpackに詳しくないため詳細は説明できませんが、ファイル認識の設定とファイルロードの設定をしているようですね。  
+私はwebpackに詳しくないため詳細は説明できませんが、ファイルに対する正規表現とそれに対する読み込み関連設定をしているみたいです。  
 
 `.storybook/main.js`
 ```javascript
@@ -50,24 +48,20 @@ const path = require('path');
 module.exports = {
   webpackFinal: async config => {
 
-    // add ts setting
-    config.module.rules.push({
-      test: /\.(ts|tsx)$/,
-      use: [
-        {
-          loader: require.resolve('ts-loader'),
-        },
-      ],
-    });
-
     // add sass setting
     config.module.rules.push({
-        test: /\.scss$/,
-        use: ['style-loader', 'css-loader', 'sass-loader'],
-        include: path.resolve(__dirname, '../'),
-      });
+      test: /\.scss$/,
+      use: ['style-loader', 'css-loader', 'sass-loader'],
+      include: path.resolve(__dirname, '../'),
+    });
 
-    config.resolve.extensions.push('.ts', '.tsx');
+    // add html setting
+    config.module.rules.push({
+      test: /\.html$/,
+      loaders: ['extract-loader', 'html-loader'],
+      include: path.resolve(__dirname, '../'),
+    });
+
     return config;
   },
 };
@@ -82,58 +76,20 @@ module.exports = {
 import { configure } from '@storybook/html'
 
 function loadStories() {
-  const req = require.context('../src', true, /\.stories\.ts$/)
+  const req = require.context('../src', true, /\.stories\.js$/)
   req.keys().forEach(filename => req(filename))
 }
 
 configure(loadStories, module)
 ```
 
-私はtsxの拡張子を利用しないので、tsファイルのみを読み込むようにしています。  
 今回はファイルを`src/**`に配置していくため、このような設定になっています。  
-
-
-#### tsconfig.json
-
-`tsconfig.json`
-```json
-{
-  "compilerOptions": {
-    "outDir": "build/lib",
-    "module": "commonjs",
-    "target": "es5",
-    "lib": ["es5", "es6", "es7", "es2017", "dom"],
-    "sourceMap": true,
-    "allowJs": false,
-    "moduleResolution": "node",
-    "rootDirs": ["src", "stories"],
-    "baseUrl": "src",
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitReturns": true,
-    "noImplicitThis": false,
-    "noImplicitAny": false,
-    "strictNullChecks": false,
-    "suppressImplicitAnyIndexErrors": false,
-    "noUnusedLocals": true,
-    "declaration": false,
-    "allowSyntheticDefaultImports": true,
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "build", "scripts"]
-}
-```
-
-tsconfigは公式サイトにある内容から一部緩くしたりreactを削除した状態です。  
-ここは各々好きに設定していただければ大丈夫です。  
-
 
 ## storyファイルの追加
 
 サンプルにボタンコンポーネントを追加してみます。  
 
-`src/components/Button/button.stories.ts`
+`src/components/Button/button.stories.js`
 ```typescript
 import './_index.scss';
 import { storiesOf } from '@storybook/html';
@@ -154,7 +110,37 @@ storiesOf('Components', module)
 }
 ```
 
-sassファイルの名前はts側でのimportに合わせて設定可能です。  
+sassファイルの名前はjs側でのimportに合わせて設定可能です。  
+
+## ファイルの切り出し
+
+html-loaderの設定をしているのでhtmlファイルを別ファイルとしてimportできるようになっています。  
+試しに別ファイルにして読み込んでみましょう。  
+
+`src/components/Button/button.stories.js`
+```javascript
+import './_index.scss';
+import { storiesOf } from '@storybook/html';
+import defaultButton from './default.html';
+import primaryButton from './primary.html';
+
+storiesOf('Components', module)
+  .add('default', () => defaultButton)
+  .add('primary', () => primaryButton);
+```
+
+`src/components/Button/default.html`
+```html
+<button class="Button" type="button">ボタン</button>
+```
+
+`src/components/Button/primary.html`
+```html
+<button class="Button primary" type="button">ボタン</button>
+```
+
+これで対応は完了です。  
+このようにすることでhtmlとcssを別ファイルに切り出せるので、実装がしやすくなりますね。  
 
 ## 動作の確認
 

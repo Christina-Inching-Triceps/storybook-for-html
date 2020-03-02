@@ -3,5 +3,10 @@
 .Button {
   border:        2px solid red;
   font-weight:   bold;
+
+  &.primary {
+    background-color: #007bff;
+    color: #fff;
+  }
 }
 
