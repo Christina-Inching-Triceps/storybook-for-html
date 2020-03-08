@@ -17,6 +17,24 @@ module.exports = {
       include: path.resolve(__dirname, '../'),
     });
 
+    // add display source setting
+    config.module.rules.push({
+      test: /\.stories\.js?$/,
+      use: [
+        {
+          loader: require.resolve('@storybook/source-loader'),
+          options: { injectParameters: true },
+        },
+      ],
+      include: [path.resolve(__dirname, '../src')],
+      enforce: 'pre',
+    });
+
     return config;
   },
+  addons: [
+    '@storybook/addon-docs',
+    '@storybook/addon-viewport',
+    '@storybook/addon-storysource'
+  ]
 };
